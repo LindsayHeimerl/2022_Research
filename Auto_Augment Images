@@ -1,0 +1,238 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage.io import imread, imshow
+from skimage.color import rgb2gray
+from skimage.transform import rescale
+from scipy.signal import convolve2d
+import os
+import torch
+import numpy as np
+from torch.utils.data import TensorDataset, DataLoader
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import torchvision
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+from torchvision.datasets import FashionMNIST
+import matplotlib.pyplot as plt
+
+#testing out kernel filtering
+def main():
+
+    def resc(img):
+        r_scaled = rescale(img[:, :, 0], 0.10)
+        g_scaled = rescale(img[:, :, 1], 0.10)
+        b_scaled = rescale(img[:, :, 2], 0.10)
+        img_scaled = np.stack([r_scaled, g_scaled, b_scaled], axis=2)
+        img_gray = rescale(rgb2gray(img), 0.10)
+
+        return img_gray, img_scaled
+
+
+    def rgb_convolve2d(image, kernel):
+        red = convolve2d(image[:, :, 0], kernel, 'valid')
+        green = convolve2d(image[:, :, 1], kernel, 'valid')
+        blue = convolve2d(image[:, :, 2], kernel, 'valid')
+        return np.stack([red, green, blue], axis=2)
+
+
+    def edge_detection(img_gray):
+        # Edge Detection1
+        kernel1 = np.array([[0, -1, 0],
+                            [-1, 4, -1],
+                            [0, -1, 0]])
+        # Edge Detection2
+        kernel2 = np.array([[-1, -1, -1],
+                            [-1, 8, -1],
+                            [-1, -1, -1]])
+        # Bottom Sobel Filter
+        kernel3 = np.array([[-1, -2, -1],
+                            [0, 0, 0],
+                            [1, 2, 1]])
+        # Top Sobel Filter
+        kernel4 = np.array([[1, 2, 1],
+                            [0, 0, 0],
+                            [-1, -2, -1]])
+        # Left Sobel Filter
+        kernel5 = np.array([[1, 0, -1],
+                            [2, 0, -2],
+                            [1, 0, -1]])
+        # Right Sobel Filter
+        kernel6 = np.array([[-1, 0, 1],
+                            [-2, 0, 2],
+                            [-1, 0, 1]])
+        kernels = [kernel1, kernel2, kernel3, kernel4, kernel5, kernel6]
+        kernel_name = ['Edge Detection1', 'Edge Detection 2', 'Bottom Sobel',
+        'Top Sobel', 'Left Sobel', 'Right Sobel']
+        figure, axis = plt.subplots(2, 3, figsize=(12, 10))
+        imgs = []
+        for kernel, name, ax in zip(kernels, kernel_name, axis.flatten()):
+            conv_im1 = convolve2d(img_gray,
+                                  kernel[::-1, ::-1]).clip(0, 1)
+            imgs.append(conv_im1)
+            ax.imshow(abs(conv_im1), cmap='gray')
+            ax.set_title(name)
+        #plt.show()
+        return imgs
+
+    def basic_filters(img_scaled):
+
+        # Sharpen
+        kernel7 = np.array([[0, -1, 0],
+                            [-1, 5, -1],
+                            [0, -1, 0]])
+        # Emboss
+        kernel8 = np.array([[-2, -1, 0],
+                            [-1, 1, 1],
+                            [0, 1, 2]])
+        # Box Blur
+        kernel9 = (1 / 9.0) * np.array([[1, 1, 1],
+                                        [1, 1, 1],
+                                        [1, 1, 1]])
+        # Gaussian Blur 3x3
+        kernel10 = (1 / 16.0) * np.array([[1, 2, 1],
+                                          [2, 4, 2],
+                                          [1, 2, 1]])
+        # Gaussian Blur 5x5
+        kernel11 = (1 / 256.0) * np.array([[1, 4, 6, 4, 1],
+                                           [4, 16, 24, 16, 4],
+                                           [6, 24, 36, 24, 6],
+                                           [4, 16, 24, 16, 4],
+                                           [1, 4, 6, 4, 1]])
+        # Unsharp masking 5x5
+        kernel12 = -(1 / 256.0) * np.array([[1, 4, 6, 4, 1],
+                                            [4, 16, 24, 16, 4],
+                                            [6, 24, -476, 24, 6],
+                                            [4, 16, 24, 16, 4],
+                                            [1, 4, 6, 4, 1]])
+        kernels = [kernel7, kernel8, kernel9, kernel10, kernel11, kernel12]
+        kernel_name = ['Sharpen', 'Emboss', 'Box Blur', '3x3 Gaussian Blur',
+                       '5x5 Gaussian Blur', '5x5 Unsharp Masking']
+        figure, axis = plt.subplots(2, 3, figsize=(12, 10))
+
+        imgs = []
+        for kernel, name, ax in zip(kernels, kernel_name, axis.flatten()):
+            conv_im1 = rgb_convolve2d(img_scaled,
+                                      kernel[::-1, ::-1]).clip(0, 1)
+            ax.imshow(abs(conv_im1), cmap='gray')
+            ax.set_title(name)
+            imgs.append(conv_im1)
+
+        #plt.show()
+
+        return imgs
+
+    dir_train_noCancer = '/Users/lint/PycharmProjects/Research/aug_test'
+    dir_train_Cancer = '/Users/lint/PycharmProjects/Research/aug_test_2'
+
+
+
+
+    #gets a tuple of augmented images.
+    def test_augment(dir):
+
+        aug_imgs = []
+        aug_imgs = np.array(aug_imgs)
+
+        for file in os.listdir(dir):
+            if file.endswith('.jpg'):
+                img = imread(dir + '/' + file)
+                print(img.shape)
+                #plt.imshow(img, cmap='gray')
+                #plt.show()
+
+                img_gray, img_scaled = resc(img)
+                tup1 = edge_detection(img_gray)
+                tup2 = basic_filters(img_scaled)
+
+                for i in range(len(tup1)):
+
+                    aug_imgs = np.append(aug_imgs, tup1[i])
+                    aug_imgs = np.append(aug_imgs, tup2[i])
+
+
+                #add in both classes and test(diff loops for all)
+
+                #add in a resnet9 model function...call here
+                #using the list of augmented images
+
+                #save to a matrix
+
+        return aug_imgs
+
+    aug_cancer_train = test_augment(dir_train_Cancer)
+    aug_noncancer_train = test_augment(dir_train_noCancer)
+
+
+
+    #create dataloader object from augmented data
+    def create_dataloader(tupe_noncancer, tupe_cancer):
+
+        x = []
+        y = []
+        x = np.array(x)
+        y = np.array(y)
+
+
+        for i in range(len(tupe_cancer)):
+            x = np.append(x, tupe_cancer[i])
+            x = np.append(x, tupe_noncancer[i])
+
+
+            temp_1 = np.array([1])
+            temp_0 = np.array([0])
+
+
+            y = np.append(y, temp_1)
+            y = np.append(y, temp_0)
+
+
+        tensor_x = torch.Tensor(x)
+        tensor_y = torch.Tensor(y)
+
+        dataset = TensorDataset(tensor_x, tensor_y)
+        dataloader = DataLoader(dataset)
+
+        return dataloader
+
+    #train_loader = create_dataloader(aug_cancer_train, aug_noncancer_train)
+    #print(type(train_loader))
+
+    def make_test_dataloader(dir_noncancer, dir_cancer):
+
+        x = []
+        x = np.array(x)
+
+        y = []
+        y = np.array(y)
+
+        for file in os.listdir(dir_noncancer):
+            if file.endswith('.jpg'):
+                img = imread(dir_noncancer + '/' + file)
+                img_gray, img_scaled = resc(img)
+                print(type(img_scaled))
+                print(img_scaled)
+                x = np.append(x, img_scaled)
+                y = np.append(y, [0])
+
+        for file in os.listdir(dir_cancer):
+            if file.endswith('.jpg'):
+                img = imread(dir_cancer + '/' + file)
+                img_gray, img_scaled = resc(img)
+                x = np.append(x, img_scaled)
+                y = np.append(y, [1])
+
+        tensor_x = torch.Tensor(x)
+        tensor_y = torch.Tensor(y)
+
+        #dataset = TensorDataset(tensor_x, tensor_y)
+        #dataloader = DataLoader(dataset)
+
+        return
+
+
+    return
+
+if __name__ == '__main__':
+    main()
