@@ -230,6 +230,40 @@ def main():
         #dataloader = DataLoader(dataset)
 
         return
+   
+    def create_test_dataloader(dir):
+
+        # Look into the data directory
+
+
+        print(os.listdir(dir))
+
+        # Training data directory
+        print('Classes:')
+        # os.remove(train_dir + '/.DS_Store')
+        print(os.listdir(dir))
+
+        # Transformations aplied to test DS.
+        test_tf = tt.Compose([
+            tt.Resize(size=(150, 150)),
+            tt.ToTensor(),
+        ])
+
+
+        test_ds = ImageFolder(dir, test_tf)
+
+        img, label = test_ds[0]
+        print(img.shape)
+
+        loader = DataLoader(
+            test_ds,
+            num_workers=3,
+            shuffle=True,
+            pin_memory=True
+        )
+
+
+        return loader
 
 
     return
